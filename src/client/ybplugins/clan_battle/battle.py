@@ -60,6 +60,7 @@ class ClanBattle:
         '查3': 23,
         '查4': 24,
         '查5': 25,
+        '下树': 26,
     }
 
     Server = {
@@ -1452,6 +1453,14 @@ class ClanBattle:
                 if m.get('message'):
                     reply += '：' + m['message']
             return reply
+        elif match_num == 26:     # 自定义下树
+            boss_num = 0
+            counts = self.cancel_subscribe(group_id, user_id, boss_num)
+            if counts == 0:
+                return '您不在树上'
+                _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
+            _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
+            return '已下树'
 
     def register_routes(self, app: Quart):
 
