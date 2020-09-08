@@ -61,8 +61,11 @@ class ClanBattle:
         '查4': 24,
         '查5': 25,
         '下树': 26,
+        '合刀': 27,
+        '展示伤害': 28,
+        '清空伤害': 29
     }
-
+    damage = {}
     Server = {
         '日': 'jp',
         '台': 'tw',
@@ -112,6 +115,14 @@ class ClanBattle:
         User.update({User.authority_group: 1}).where(
             User.qqid.in_(self.setting['super-admin'])
         ).execute()
+
+    def _get_damage_list(ls):
+        i = 1
+        damage_list_show = ""
+        for l in ls:
+            damage_list += "#" + str(i) + " " + l[0] + ":" + str(l[1]) + "\n"
+            i += 1
+        return damage_list_show
 
     def _level_by_cycle(self, cycle, *, level_4=None, game_server=None):
         if cycle <= 3:
@@ -1454,6 +1465,8 @@ class ClanBattle:
                     reply += '：' + m['message']
             return reply
         elif match_num == 26:     # 自定义下树
+            if len(cmd) != 2:
+                return
             boss_num = 0
             counts = self.cancel_subscribe(group_id, user_id, boss_num)
             if counts == 0:
@@ -1461,6 +1474,60 @@ class ClanBattle:
                 _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
             _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
             return '已下树'
+        elif match_num == 27:      # 合刀
+            match = re.match(
+                r'^合刀 ?(\d+)([Ww万Kk千])? *(?:\[CQ:at,qq=(\d+)\])? $', cmd)
+            if not match:
+                return
+            unit = {
+                'W': 10000,
+                'w': 10000,
+                '万': 10000,
+                'k': 1000,
+                'K': 1000,
+                '千': 1000,
+            }.get(match.group(2), 1)
+            damage = int(match.group(1)) * unit
+            behalf = match.group(3) and int(match.group(3))
+            # previous_day = bool(match.group(4))
+            extra_msg = match.group(4)
+            if isinstance(extra_msg, str):
+                extra_msg = extra_msg.strip()
+                if not extra_msg:
+                    extra_msg = None
+            nickname_damage = self._get_nickname_by_qqid(m['qqid'])
+            damage_list[nickname_damage] = int(damage)
+            try:
+                self.add_subscribe(group_id, user_id, 6, extra_msg)
+            except ClanBattleError as e:
+                _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
+                return str(e)
+            _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
+            return "已记录:" + nickname_damage + "的伤害为" + str(damage)
+
+        elif match_num == 28:      # 展示伤害
+            if len(cmd) != 4:
+                return
+            subscribers = self.get_subscribe_list(group_id, 6)
+            if not subscribers:
+                return '没有人合刀'
+            reply = '合刀的成员：\n'
+            for m in subscribers:
+                reply += '\n'+self._get_nickname_by_qqid(m['qqid'])
+                if m.get('message'):
+                    reply += '：' + m['message']
+            return reply
+        elif match_num == 29:      # 清空伤害
+            if len(cmd) != 4:
+                return
+            subscribers = self.get_subscribe_list(group_id, 6)
+            if not subscribers:
+                return '没有人合刀'
+                _logger.info('群聊 失败 {} {} {}'.format(user_id, group_id, cmd))
+            for m in subscribers:
+                counts = self.cancel_subscribe(group_id, user_id, 6)
+            _logger.info('群聊 成功 {} {} {}'.format(user_id, group_id, cmd))
+            return '已清空伤害列表'
 
     def register_routes(self, app: Quart):
 
